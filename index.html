@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ดาวดึงส์ (DaoDueng) — แผนที่ดาวจำลอง 360° & ท้องฟ้าจำลองออนไลน์</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- 360° Interactive Sky Dome Canvas -->
+  <canvas id="skyCanvas"></canvas>
+
+  <!-- Top Navigation & Search HUD -->
+  <header class="top-hud">
+    <div class="brand-card">
+      <div class="brand-logo">✦</div>
+      <div>
+        <div class="brand-title">ดาวดึงส์ • DaoDueng</div>
+        <div class="brand-subtitle">แผนที่ดาวจำลอง 360° & ดาราศาสตร์ไทย</div>
+      </div>
+    </div>
+
+    <!-- Search Bar (Stars, Planets, Constellations, Deep Sky, Meteor Showers) -->
+    <div class="search-wrapper">
+      <div class="search-input-box">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="ค้นหาดาว กลุ่มดาว ดาวเคราะห์ (เช่น ซิริอัส, นายพราน, ดาวเสาร์, M45)..."
+          autocomplete="off"
+        />
+        <button id="searchClearBtn" class="search-clear-btn" title="ล้างคำค้นหา">✕</button>
+      </div>
+      <div id="searchDropdown" class="search-results-dropdown"></div>
+    </div>
+
+    <!-- Top Right Action Buttons -->
+    <div class="top-actions">
+      <button id="openLocationModalBtn" class="hud-pill-btn" title="เปลี่ยนสถานที่สังเกตการณ์และพิกัด GPS">
+        <span>📍</span>
+        <span id="currentLocationText">กรุงเทพมหานคร</span>
+      </button>
+
+      <button id="openTalesModalBtn" class="hud-pill-btn" title="อ่านและฟังนิทานดวงดาว ตำนานดาวไทย-สากล">
+        <span>📖</span>
+        <span>นิทานดวงดาว</span>
+      </button>
+
+      <button id="openEventsModalBtn" class="hud-pill-btn" title="ปฏิทินฝนดาวตกและปรากฏการณ์ดาราศาสตร์">
+        <span>☄️</span>
+        <span>ปฏิทินฝนดาวตก</span>
+      </button>
+
+      <button id="nightVisionBtn" class="hud-pill-btn night-btn" title="โหมดแสงสีแดงถนอมสายตาในที่มืด (Night Vision)">
+        <span>👁️</span>
+        <span>Night Vision</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Top Center Compass / Camera Readout -->
+  <div id="compassReadout" class="compass-pill">
+    ทิศตะวันออกเฉียงใต้ (SE) • มุมกวาด 135° • มุมเงย +32° • ขอบเขตภาพ 75°
+  </div>
+
+  <!-- Left Telemetry & Sky Quality / Moon Phase Widget -->
+  <aside class="telemetry-bar">
+    <div class="telemetry-card">
+      <div class="telemetry-row">
+        <span class="telemetry-label">สถานะท้องฟ้า</span>
+        <span id="skyStateText" class="telemetry-val">-</span>
+      </div>
+      <div class="telemetry-row">
+        <span class="telemetry-label">ทัศนวิสัยดูดาว</span>
+        <span id="skyScoreText" class="telemetry-val">-</span>
+      </div>
+      <div class="quality-bar-track">
+        <div id="skyQualityBar" class="quality-bar-fill" style="width: 85%"></div>
+      </div>
+
+      <div class="telemetry-row" style="margin-top: 8px;">
+        <span class="telemetry-label">เวลาดาราคติ (LST)</span>
+        <span id="lstReadout" class="telemetry-val">--h --m</span>
+      </div>
+
+      <div class="moon-mini-row">
+        <canvas id="moonPhaseCanvas" width="28" height="28"></canvas>
+        <div>
+          <div id="moonPhaseText" style="font-weight: 600; font-size: 0.8rem;">-</div>
+          <div id="moonIllumText" style="font-size: 0.7rem; color: var(--text-secondary);">-</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Object Inspector Drawer -->
+  <aside id="inspectorDrawer" class="inspector-drawer">
+    <div class="inspector-header">
+      <div>
+        <span id="inspectorBadge" class="inspector-badge">ดาวฤกษ์</span>
+        <h2 id="inspectorTitle" class="inspector-title">ชื่อวัตถุท้องฟ้า</h2>
+        <div id="inspectorSubtitle" class="inspector-subtitle">English Name</div>
+      </div>
+      <button id="closeInspectorBtn" class="close-icon-btn" title="ปิดหน้าต่างข้อมูล">✕</button>
+    </div>
+
+    <div class="inspector-body">
+      <!-- Live 3D Rotatable Celestial Surface Preview -->
+      <div id="surfacePreviewBox" class="surface-preview-box" title="ลากเมาส์เพื่อหมุนดูผิวดาว 360°">
+        <canvas id="inspectorSurfaceCanvas" width="560" height="340"></canvas>
+        <div class="surface-preview-overlay">
+          <span class="surface-preview-hint">🔄 ลากหมุนดูผิวดาว 3D</span>
+          <button id="openSurfaceModalBtn" class="surface-expand-btn">
+            🔭 ขยายส่องพื้นผิวดาว
+          </button>
+        </div>
+      </div>
+
+      <div class="inspector-actions">
+        <button id="trackObjectBtn" class="action-btn-primary">
+          🎯 ล็อกเป้าหมายและติดตามดาว
+        </button>
+      </div>
+
+      <div id="inspectorStatsGrid" class="inspector-stats-grid"></div>
+
+      <div>
+        <div class="stat-label" style="margin-bottom: 6px;">ข้อมูลทางดาราศาสตร์</div>
+        <p id="inspectorDesc" class="inspector-desc"></p>
+      </div>
+
+      <!-- Star Folklore & World Mythology Cards -->
+      <div id="inspectorStoryCard" class="story-section-card">
+        <div class="story-header-row">
+          <div class="story-card-title">📖 นิทานดวงดาว & คติความเชื่อไทย</div>
+          <button id="speakStoryBtn" class="tts-btn" title="ฟังเสียงเล่านิทานดาวดวงนี้">
+            🔊 ฟังนิทาน
+          </button>
+        </div>
+        <div id="inspectorStoryTh" class="story-card-text"></div>
+      </div>
+
+      <div id="inspectorMythCard" class="story-section-card">
+        <div class="story-card-title">🏛️ ตำนานกรีก-สากล & ที่มาของชื่อ</div>
+        <div id="inspectorMythWorld" class="story-card-text"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Bottom Control Dock (Layers + Time Machine) -->
+  <footer class="bottom-dock">
+    <div class="dock-bar">
+      <!-- Visual Layer Toggles -->
+      <div class="layer-toggles">
+        <button class="layer-btn active" data-layer="constellationLines" title="เปิด/ปิด เส้นเชื่อมกลุ่มดาว">
+          ✨ เส้นกลุ่มดาว
+        </button>
+        <button class="layer-btn active" data-layer="constellationLabels" title="เปิด/ปิด ชื่อกลุ่มดาว">
+          🏷️ ชื่อกลุ่มดาว
+        </button>
+        <button class="layer-btn active" data-layer="starLabels" title="เปิด/ปิด ชื่อดาวฤกษ์สว่าง">
+          ⭐ ชื่อดาว
+        </button>
+        <button class="layer-btn active" data-layer="planets" title="เปิด/ปิด ดวงอาทิตย์ ดวงจันทร์ และดาวเคราะห์">
+          🪐 ดาวเคราะห์
+        </button>
+        <button class="layer-btn active" data-layer="deepSky" title="เปิด/ปิด เนบิวลา กระจุกดาว และดาราจักร (Messier)">
+          🌌 เนบิวลา/กระจุกดาว
+        </button>
+        <button class="layer-btn active" data-layer="milkyWay" title="เปิด/ปิด แถบทางช้างเผือก">
+          🥛 ทางช้างเผือก
+        </button>
+        <button class="layer-btn" data-layer="azGrid" title="เปิด/ปิด เส้นกริดพิกัดขอบฟ้า (Alt/Az)">
+          🌐 เส้นกริดฟ้า
+        </button>
+        <button class="layer-btn active" data-layer="ecliptic" title="เปิด/ปิด เส้นสุริยวิถี (Ecliptic)">
+          ☀️ สุริยวิถี
+        </button>
+        <button class="layer-btn" data-layer="meteorRadiants" title="เปิด/ปิด จุดศูนย์กลางฝนดาวตก">
+          ☄️ จุดฝนดาวตก
+        </button>
+        <button class="layer-btn active" data-layer="horizon" title="เปิด/ปิด เส้นขอบฟ้าและทิศ">
+          ⛰️ ขอบฟ้า
+        </button>
+      </div>
+
+      <!-- Time Machine Controls -->
+      <div class="time-controls">
+        <button class="time-step-btn" data-time-offset="-1440" title="ย้อนหลัง 1 วัน">-1 วัน</button>
+        <button class="time-step-btn" data-time-offset="-60" title="ย้อนหลัง 1 ชั่วโมง">-1 ชม.</button>
+        <button id="playPauseBtn" class="time-step-btn" title="หยุดหรือเล่นเวลาจำลอง">⏸ หยุดเวลา</button>
+        <button class="time-step-btn" data-time-offset="60" title="เดินหน้า 1 ชั่วโมง">+1 ชม.</button>
+        <button class="time-step-btn" data-time-offset="1440" title="เดินหน้า 1 วัน">+1 วัน</button>
+
+        <select id="speedSelect" class="speed-select" title="ความเร็วการหมุนของเวลา">
+          <option value="1">1x (เวลาจริง)</option>
+          <option value="60">60x (1 นาที/วิ)</option>
+          <option value="600">600x (10 นาที/วิ)</option>
+          <option value="1800">1800x (30 นาที/วิ)</option>
+          <option value="3600">3600x (1 ชม./วิ)</option>
+          <option value="-600">-600x (ย้อนเวลา)</option>
+        </select>
+
+        <button id="clockDisplay" class="time-display-btn" title="คลิกเพื่อเลือกวันและเวลาที่ต้องการ">
+          กำลังโหลดเวลา...
+        </button>
+        <input type="datetime-local" id="datetimeInput" style="position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;" />
+
+        <button id="nowBtn" class="time-step-btn time-Step-highlight" title="กลับมาเวลาปัจจุบันทันที">
+          ⏱ เวลานี้
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Modal 1: Location & Light Pollution Selector -->
+  <div id="locationModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">📍 เลือกสถานที่ดูดาว & พิกัดสังเกตการณ์</div>
+        <button id="closeLocationModalBtn" class="close-icon-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <button id="gpsDetectBtn" class="action-btn-primary">
+          📍 ใช้พิกัด GPS ปัจจุบันของฉัน
+        </button>
+
+        <div>
+          <div class="stat-label" style="margin-bottom: 8px;">จุดดูดาวยอดนิยมและหอดูดาวในประเทศไทย</div>
+          <div id="presetLocationsGrid" class="preset-grid"></div>
+        </div>
+
+        <div style="border-top: 1px solid var(--panel-border); padding-top: 14px;">
+          <div class="stat-label" style="margin-bottom: 8px;">กำหนดพิกัดละติจูด / ลองจิจูด และระดับมลภาวะทางแสง (Bortle Scale)</div>
+          <div class="custom-coords-row">
+            <div class="input-group">
+              <label for="latInput">ละติจูด (Latitude °N)</label>
+              <input type="number" id="latInput" class="input-field" step="0.01" value="13.7563" />
+            </div>
+            <div class="input-group">
+              <label for="lonInput">ลองจิจูด (Longitude °E)</label>
+              <input type="number" id="lonInput" class="input-field" step="0.01" value="100.5018" />
+            </div>
+            <div class="input-group">
+              <label for="bortleSelect">ความมืดท้องฟ้า (Bortle)</label>
+              <select id="bortleSelect" class="input-field">
+                <option value="1">ระดับ 1 - มืดสนิทระดับโลก</option>
+                <option value="2">ระดับ 2 - ยอดดอย/อุทยานมืดสนิท</option>
+                <option value="3">ระดับ 3 - ชนบทห่างไกล</option>
+                <option value="4">ระดับ 4 - ชานเมือง/ต่างจังหวัด</option>
+                <option value="5">ระดับ 5 - ชานเมืองใหญ่</option>
+                <option value="7">ระดับ 7 - ตัวเมือง</option>
+                <option value="8" selected>ระดับ 8 - มหานคร (กรุงเทพฯ)</option>
+              </select>
+            </div>
+          </div>
+          <button id="applyCustomCoordsBtn" class="action-btn-primary" style="margin-top: 10px; width: 100%;">
+            บันทึกพิกัดที่กำหนดเอง
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Meteor Showers & Astronomical Events Calendar -->
+  <div id="eventsModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">☄️ ปฏิทินฝนดาวตกสำคัญประจำปี</div>
+        <button id="closeEventsModalBtn" class="close-icon-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.82rem; color: var(--text-secondary);">
+          คลิก <strong>"ชี้ตำแหน่งบนฟ้า"</strong> เพื่อหมุนกล้องไปยังจุดศูนย์กลางการกระจายตัวของฝนดาวตก (Radiant) บนแผนที่ดาว
+        </p>
+        <div id="eventsListContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Star Tales & Mythology Library (คลังนิทานดวงดาว) -->
+  <div id="talesModal" class="modal-backdrop">
+    <div class="modal-card" style="max-width: 720px;">
+      <div class="modal-header">
+        <div class="modal-title">📖 คลังนิทานดวงดาว & ตำนานดาราศาสตร์ไทย-สากล</div>
+        <button id="closeTalesModalBtn" class="close-icon-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="tales-tabs">
+          <button class="tale-tab-btn active" data-tale-tab="featured">🌟 นิทานดาวเรื่องเอก (6 เรื่องดัง)</button>
+          <button class="tale-tab-btn" data-tale-tab="stars">⭐ นิทานดาวฤกษ์เด่นรายดวง</button>
+          <button class="tale-tab-btn" data-tale-tab="constellations">✨ ตำนาน 29 กลุ่มดาว</button>
+          <button class="tale-tab-btn" data-tale-tab="solar">🪐 ตำนานเทวดานพเคราะห์</button>
+        </div>
+
+        <div id="talesContentContainer" style="display: flex; flex-direction: column; gap: 12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Full-Screen 3D Celestial Surface & Telescope Close-Up Explorer -->
+  <div id="surfaceModal" class="modal-backdrop">
+    <div class="surface-modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🔭</span>
+          <span id="surfaceModalTitle">กล้องโทรทรรศน์ส่องพื้นผิวดาว 3D</span>
+        </div>
+        <button id="closeSurfaceModalBtn" class="close-icon-btn">✕</button>
+      </div>
+
+      <div class="surface-modal-layout">
+        <div id="surfaceViewportWrap" class="surface-viewport-wrap">
+          <canvas id="fullSurfaceCanvas" width="640" height="580"></canvas>
+
+          <div class="surface-Floating-toolbar">
+            <span style="font-size: 0.76rem; color: var(--text-secondary);">🔍 ซูม:</span>
+            <input
+              type="range"
+              id="surfaceZoomSlider"
+              class="surface-zoom-slider"
+              min="0.65"
+              max="7.5"
+              step="0.05"
+              value="1.15"
+            />
+            <span id="surfaceZoomVal" style="font-family: var(--font-mono); font-size: 0.78rem; min-width: 36px;">1.2x</span>
+
+            <span style="font-size: 0.76rem; color: var(--text-secondary); margin-left: 4px;">☀️ มุมเงา:</span>
+            <input
+              type="range"
+              id="surfaceLightSlider"
+              class="surface-zoom-slider"
+              style="width: 78px;"
+              min="-2.4"
+              max="2.4"
+              step="0.05"
+              value="0.62"
+              title="ปรับมุมตกกระทบของแสงอาทิตย์เพื่อดูเงาหลุมอุกกาบาตและหุบเขา 3 มิติ"
+            />
+
+            <button id="toggleLandmarksBtn" class="layer-btn active" title="แสดงชื่อจุดสำคัญบนพื้นผิวดาว">
+              📍 จุดสำคัญ
+            </button>
+            <button id="toggleCoronaBtn" class="layer-btn active" title="แสดงชั้นโคโรนาและเปลวสุริยะ">
+              🔥 โคโรนา
+            </button>
+            <button id="toggleSurfaceGridBtn" class="layer-btn" title="แสดงเส้นกริดละติจูด-ลองจิจูดบนผิวดาว">
+              🌐 กริด
+            </button>
+            <button id="toggleAutoSpinBtn" class="layer-btn active" title="หมุนดาวรอบตัวเองอัตโนมัติ">
+              🔄 หมุน
+            </button>
+          </div>
+        </div>
+
+        <div class="surface-sidebar">
+          <div>
+            <span id="surfaceTypeBadge" class="inspector-badge">ดาวฤกษ์</span>
+            <h3 id="surfaceSidebarName" style="font-size: 1.05rem; font-weight: 600;">ชื่อดาว</h3>
+            <div id="surfaceSidebarSub" style="font-size: 0.78rem; color: var(--text-secondary);">English Name</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-label">อุณหภูมิพื้นผิว / ชั้นบรรยากาศ</div>
+            <div id="surfaceTempVal" class="stat-value" style="color: var(--accent-amber);">-</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-label">ขนาดและมิติ</div>
+            <div id="surfaceSizeVal" class="stat-value">-</div>
+          </div>
+
+          <div class="story-section-card">
+            <div class="story-card-title">🔬 โครงสร้างและลักษณะพื้นผิว 3D</div>
+            <div id="surfaceFeaturesDesc" class="story-card-text"></div>
+          </div>
+
+          <div class="story-section-card">
+            <div class="story-card-title">💡 วิธีสำรวจพื้นผิวดาว</div>
+            <div class="story-card-text" style="font-size: 0.78rem; color: var(--text-secondary);">
+              • <strong>ลากเมาส์ / นิ้ว</strong> บนภาพดาวเพื่อหมุนดูพื้นผิวรอบทิศทาง 360°<br/>
+              • <strong>หมุนลูกกลิ้งเมาส์</strong> หรือเลื่อนแถบซูมเพื่อขยายดูเซลล์พาความร้อน จุดมืด หลุมอุกกาบาต หรือวงแหวนระยะใกล้
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="astronomy.js"></script>
+  <script src="stories.js"></script>
+  <script src="surface.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
